@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+/**
+ * Module dependencies.
+ */
+
+const Server = require('socket.io');
+var app = require('../app');
+var debug = require('debug')('demo:server');
+var http = require('https');
+const { subType, joinMsg, talkMsg, leaveMsg, actionMsg } = require('../controllers/msg');
+/**
+ * Get port from environment and store in Express.
+ */
+const fs = require('fs');
+const path = require('path');
+const options = {
+  // cert: fs.readFileSync(path.join('/Users/zhuchenliang/.cert/create-ca+3.pem')),
+  // key: fs.readFileSync(path.join('/Users/zhuchenliang/.cert/create-ca+3-key.pem'))
+};
+
+var port = normalizePort(process.env.PORT || '3000');
+// app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+const USERMAP = ['A', 'B', 'C', 'D']
+
+var server = http.createServer(options, app.callback());
+
+var io = require('socket.io')(server, { cors: true, path: '/chat' });
+
+let client_users = [];
+
+// socket连接
+io.on('connection', (socket) => {
+  // 加入
+  socket.on('joined', room => {
+
+    if (client_users.filter(user => user.id === socket.id).length === 0) {
+      client_users.push(socket.id);
+    }
+    socket.join(room);
+
+    socket.emit('action', actionMsg({
+      user: `用户${socket.id}`,
+    }, subType.ChangeName));
+
+    // 发给这个房间内除自己以外的人
+    // socket.to(room).emit('message', joinMsg({
+    //   user: `用户${socket.id}`,
+    // })
+    // )
+    // 发给这个房间内所有人
+    socket.broadcast.to(room).emit('message', joinMsg({
+      user: `用户${socket.id}`,
+    })
+    )
+  })
+
+  // 用户消息
+  socket.on('message', record => {
+    io.to(record.room_id).emit('message', talkMsg(record))
+  })
+
+  // 离开
+  socket.on('leave', room => {
+    // 发给这个房间内除自己以外的人
+    socket.to(room).emit('message', leaveMsg({
+      user: `用户${socket.id}`
+    }))
+
+    socket.leave(room); 
+  })
+
+  // 收到对等连接创建的消息
+  socket.on('peerconnection', (room, data) => {
+    socket.to(room).emit('peerconnection', room, data);
+  })
+});
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}

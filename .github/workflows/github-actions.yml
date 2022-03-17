@@ -32,7 +32,5 @@ jobs:
           before_script: |
             rm -rf /www/webRtcService
           after_script: |
-            cd /www/webRtcService
-            npm i
-            pm2 start /www/ecosystem.config.js
+            cd /www/webRtcService && npm i && pm2 start /www/ecosystem.config.js
       - run: echo "🍏 This job's status is ${{ job.status }}."

@@ -6,7 +6,7 @@
 const Server = require('socket.io');
 var app = require('../app');
 var debug = require('debug')('demo:server');
-var http = require('https');
+var http = require('http');
 const { subType, joinMsg, talkMsg, leaveMsg, actionMsg } = require('../controllers/msg');
 /**
  * Get port from environment and store in Express.
